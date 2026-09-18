@@ -36,3 +36,28 @@ registerListeners(app);
     app.logger.error('Unable to start App', error);
   }
 })();
+
+import { ClearStateStore } from '@slack/bolt';
+
+// Replace hardcoded stateSecret in App options with process.env.SLACK_STATE_SECRET
+// and configure robust installer options:
+app.installerOptions = {
+  ...app.installerOptions,
+  stateStore: new ClearStateStore({
+    secret: process.env.SLACK_STATE_SECRET,
+  }),
+  userScopes: ['identity:basic'], // Explicitly scope user tokens if needed
+  legacyStateStore: false,
+  callbackOptions: {
+    success: (installation, installOptions, req, res) => {
+      app.logger.info(`Successfully installed to workspace: ${installation.team?.name || installation.team?.id}`);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<h1>Installation Successful!</h1><p>You can now close this tab and return to Slack.</p>');
+    },
+    failure: (error, installOptions, req, res) => {
+      app.logger.error('OAuth installation failed:', error);
+      res.writeHead(500, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<h1>Installation Failed</h1><p>Something went wrong during authorization. Please try again.</p>');
+    },
+  },
+};
